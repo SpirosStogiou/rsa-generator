@@ -14,4 +14,5 @@ app.get("/public-key", (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🔐 RSA Public Key API is running at http://localhost:${PORT}/public-key`);
+  console.log("✅ Server started successfully!"); // 🆕 ΑΥΤΗ ΕΙΝΑΙ Η ΑΛΛΑΓΗ
 });
