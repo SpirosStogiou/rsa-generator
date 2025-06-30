@@ -1,18 +1,31 @@
 const express = require("express");
-const fs = require("fs");
 const cors = require("cors");
+const crypto = require("crypto");
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 
-app.get("/public-key", (req, res) => {
-  const publicKey = fs.readFileSync("public.pem", "utf8");
-  res.json({ publicKey });
+app.get("/generate", (req, res) => {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+    publicKeyEncoding: {
+      type: "spki",
+      format: "pem",
+    },
+    privateKeyEncoding: {
+      type: "pkcs8",
+      format: "pem",
+    },
+  });
+
+  res.json({
+    publicKey,
+    privateKey,
+  });
 });
 
 app.listen(PORT, () => {
-  console.log(`🔐 RSA Public Key API is running at http://localhost:${PORT}/public-key`);
-  console.log("✅ Server started successfully!"); // 🆕 ΑΥΤΗ ΕΙΝΑΙ Η ΑΛΛΑΓΗ
+  console.log(`🔐 RSA Key API running at http://localhost:${PORT}`);
 });
