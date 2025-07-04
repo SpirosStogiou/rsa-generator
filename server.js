@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Δημιουργία PGP κλειδιών και detached υπογραφής
+// Endpoint για δημιουργία PGP κλειδιών και detached υπογραφής
 app.post("/generate", async (req, res) => {
   const { email, passphrase } = req.body;
 
@@ -35,7 +35,7 @@ app.post("/generate", async (req, res) => {
       passphrase
     });
 
-    // 3. Δημιουργία μηνύματος (το ίδιο το publicKey)
+    // 3. Δημιουργία μηνύματος (με το publicKey ως κείμενο)
     const message = await openpgp.createMessage({ text: publicKey });
 
     // 4. Detached υπογραφή του publicKey
@@ -45,12 +45,12 @@ app.post("/generate", async (req, res) => {
       detached: true
     });
 
-    // 5. Επιστροφή των στοιχείων
+    // 5. Επιστροφή των στοιχείων σε JSON
     res.json({
       success: true,
       publicKey,
       privateKey,
-      signature,
+      signature, // armored string
       message: "PGP keys and signature generated successfully"
     });
 
@@ -62,4 +62,12 @@ app.post("/generate", async (req, res) => {
       details: err.message
     });
   }
+});
+
+app.get("/", (req, res) => {
+  res.send("PGP Key API is running!");
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server is running on port ${PORT}`);
 });
