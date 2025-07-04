@@ -8,7 +8,6 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Endpoint για δημιουργία PGP κλειδιών και detached υπογραφής
 app.post("/generate", async (req, res) => {
   const { email, passphrase } = req.body;
 
@@ -20,45 +19,52 @@ app.post("/generate", async (req, res) => {
   }
 
   try {
-    // 1. Δημιουργία κλειδιών
+    // 1. Generate keys
     const { privateKey, publicKey } = await openpgp.generateKey({
       type: "rsa",
       rsaBits: 2048,
       userIDs: [{ name: "Gmail User", email }],
-      passphrase
+      passphrase,
+      format: 'armored' // Explicitly request armored format
     });
 
-    // 2. Ανάγνωση και αποκρυπτογράφηση του ιδιωτικού κλειδιού
-    const privateKeyObj = await openpgp.readPrivateKey({ armoredKey: privateKey });
+    // 2. Read and decrypt private key
+    const privateKeyObj = await openpgp.readPrivateKey({ 
+      armoredKey: privateKey 
+    });
+    
     const decryptedPrivateKey = await openpgp.decryptKey({
       privateKey: privateKeyObj,
       passphrase
     });
 
-    // 3. Δημιουργία μηνύματος (με το publicKey ως κείμενο)
-    const message = await openpgp.createMessage({ text: publicKey });
-
-    // 4. Detached υπογραφή του publicKey
-    const { signature } = await openpgp.sign({
-      message,
-      signingKeys: decryptedPrivateKey,
-      detached: true
+    // 3. Create message
+    const message = await openpgp.createMessage({ 
+      text: publicKey 
     });
 
-    // 5. Επιστροφή των στοιχείων σε JSON
+    // 4. Create detached signature (with armored format)
+    const signature = await openpgp.sign({
+      message,
+      signingKeys: decryptedPrivateKey,
+      detached: true,
+      format: 'armored' // This is crucial
+    });
+
+    // 5. Return all components
     res.json({
       success: true,
       publicKey,
       privateKey,
-      signature, // armored string
+      signature, // Now properly armored
       message: "PGP keys and signature generated successfully"
     });
 
   } catch (err) {
-    console.error("❌ Key generation error:", err);
+    console.error("❌ PGP Error:", err);
     res.status(500).json({
       success: false,
-      error: "Key generation or signing failed",
+      error: "Key generation failed",
       details: err.message
     });
   }
@@ -69,5 +75,5 @@ app.get("/", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
