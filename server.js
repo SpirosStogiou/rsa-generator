@@ -8,11 +8,12 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Δημιουργία PGP key pair
+// Δημιουργία PGP key pair και detached signature (.sig)
 app.post("/generate", async (req, res) => {
   const { email, passphrase } = req.body;
 
   try {
+    // Βήμα 1: Δημιουργία κλειδιών
     const { privateKey, publicKey } = await openpgp.generateKey({
       type: "rsa",
       rsaBits: 2048,
@@ -20,23 +21,13 @@ app.post("/generate", async (req, res) => {
       passphrase
     });
 
-    res.json({ publicKey, privateKey });
-  } catch (error) {
-    console.error("❌ PGP Key generation error:", error);
-    res.status(500).json({ error: "PGP key generation failed." });
-  }
-});
-
-// Δημιουργία detached υπογραφής (.sig) για το public key
-app.post("/sign-detached", async (req, res) => {
-  const { publicKey, privateKey, passphrase } = req.body;
-
-  try {
+    // Βήμα 2: Φόρτωση & αποκρυπτογράφηση ιδιωτικού κλειδιού
     const privKey = await openpgp.decryptKey({
       privateKey: await openpgp.readPrivateKey({ armoredKey: privateKey }),
       passphrase
     });
 
+    // Βήμα 3: Δημιουργία detached signature του public key
     const message = await openpgp.createCleartextMessage({ text: publicKey });
 
     const { signature } = await openpgp.sign({
@@ -45,10 +36,16 @@ app.post("/sign-detached", async (req, res) => {
       detached: true
     });
 
-    res.json({ signature }); // .sig in armored text format
+    // Βήμα 4: Επιστροφή όλων
+    res.json({
+      publicKey,
+      privateKey,
+      signature // .sig in armored text format
+    });
+
   } catch (error) {
-    console.error("❌ Detached signature error:", error);
-    res.status(500).json({ error: "Detached signature failed." });
+    console.error("❌ Key generation or signing error:", error);
+    res.status(500).json({ error: "Key generation or signing failed." });
   }
 });
 
