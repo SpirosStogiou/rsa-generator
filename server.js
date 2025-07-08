@@ -70,6 +70,62 @@ app.post("/generate", async (req, res) => {
   }
 });
 
+app.post("/verify", async (req, res) => {
+  const { publicKey, signature } = req.body;
+
+  if (!publicKey || !signature) {
+    return res.status(400).json({
+      success: false,
+      error: "publicKey and signature are required."
+    });
+  }
+
+  try {
+    // 1. Read public key
+    const publicKeyObj = await openpgp.readKey({ armoredKey: publicKey });
+
+    // 2. Create message (πάλι το publicKey ως μήνυμα)
+    const message = await openpgp.createMessage({ text: publicKey });
+
+    // 3. Read the signature
+    const signatureObj = await openpgp.readSignature({ armoredSignature: signature });
+
+    // 4. Verify
+    const verificationResult = await openpgp.verify({
+      message,
+      signature: signatureObj,
+      verificationKeys: publicKeyObj
+    });
+
+    const { verified, keyID } = verificationResult.signatures[0];
+
+    try {
+      await verified; // throws on bad signature
+      return res.json({
+        success: true,
+        valid: true,
+        keyID: keyID.toHex(),
+        message: "Signature is valid."
+      });
+    } catch (err) {
+      return res.json({
+        success: true,
+        valid: false,
+        message: "Signature is INVALID.",
+        details: err.message
+      });
+    }
+  } catch (err) {
+    console.error("❌ PGP Verify Error:", err);
+    res.status(500).json({
+      success: false,
+      error: "Verification failed",
+      details: err.message
+    });
+  }
+});
+
+
 app.get("/", (req, res) => {
   res.send("PGP Key API is running!");
 });
