@@ -126,6 +126,65 @@ app.post("/verify", async (req, res) => {
 });
 
 
+// ENCRYPT endpoint
+app.post("/encrypt", async (req, res) => {
+  const { publicKey, text } = req.body;
+  if (!publicKey || !text) {
+    return res.status(400).json({
+      success: false,
+      error: "publicKey and text are required."
+    });
+  }
+  try {
+    const publicKeyObj = await openpgp.readKey({ armoredKey: publicKey });
+    const message = await openpgp.createMessage({ text });
+    const encrypted = await openpgp.encrypt({
+      message,
+      encryptionKeys: publicKeyObj,
+      format: 'armored'
+    });
+    res.json({ success: true, encrypted, message: "Message encrypted successfully" });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: "Encryption failed",
+      details: err.message
+    });
+  }
+});
+
+// DECRYPT endpoint
+app.post("/decrypt", async (req, res) => {
+  const { privateKey, passphrase, encrypted } = req.body;
+  if (!privateKey || !passphrase || !encrypted) {
+    return res.status(400).json({
+      success: false,
+      error: "privateKey, passphrase and encrypted message are required."
+    });
+  }
+  try {
+    const privateKeyObj = await openpgp.readPrivateKey({ armoredKey: privateKey });
+    const decryptedPrivateKey = await openpgp.decryptKey({
+      privateKey: privateKeyObj,
+      passphrase
+    });
+    const message = await openpgp.readMessage({ armoredMessage: encrypted });
+    const { data: decrypted } = await openpgp.decrypt({
+      message,
+      decryptionKeys: decryptedPrivateKey
+    });
+    res.json({ success: true, decrypted, message: "Message decrypted successfully" });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: "Decryption failed",
+      details: err.message
+    });
+  }
+});
+
+
+
 app.get("/", (req, res) => {
   res.send("PGP Key API is running!");
 });
