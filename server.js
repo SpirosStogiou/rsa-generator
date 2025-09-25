@@ -9,9 +9,6 @@ app.use(cors());
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ limit: "5mb", extended: true }));
 
-app.listen(PORT, () => {
-  console.log(`🚀 1 Server running on port ${PORT}`);
-});
 
 app.post("/generate", async (req, res) => {
   const { email, passphrase } = req.body;
